@@ -1,16 +1,17 @@
 package org.kgromov.web;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
-import io.quarkus.hibernate.orm.panache.PanacheQuery;
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.kgromov.domain.City;
 import org.kgromov.projection.CityByCountryProjection;
+import org.kgromov.projection.LanguageUsage;
 import org.kgromov.projection.CityProjection;
 import org.kgromov.repository.CityRepository;
 
@@ -31,42 +32,40 @@ public class CityResource {
 
     @GET
     @Path("{id}")
-    public City getCity(Long id) {
-        return City.findById(id);
+    public City getCity(@PathParam("id") Long cityId) {
+        return City.findById(cityId);
     }
 
     @GET
     @Path("/projection")
     public List<CityProjection> getCitiesProjection() {
-        // really confusing - why not query()?!
-        PanacheQuery<PanacheEntityBase> query = City.findAll(Sort.by("name"));
-        return query.project(CityProjection.class).list();
+        return cityRepository.findAllCityCountries();
     }
 
     @GET
     @Path("{id}/projection")
-    public CityProjection getCityProjection(Long id) {
-        return City.find("id", id)
-                .project(CityProjection.class)
-                .firstResult();
+    public CityProjection getCityProjection(@PathParam("id") Long cityId) {
+        return cityRepository.findCityCountryById(cityId);
     }
 
     @GET
     @Path("/byCountry")
     public List<CityByCountryProjection> getCitiesByCountry() {
-        PanacheQuery<PanacheEntityBase> query = City.find("""
-                select c.country.code, count(*) as count from City c 
-                group by c.country 
-                order by count DESC
-                """);
-    /*    PanacheQuery<PanacheEntityBase> query = City.find("""
-                select ct.code, count(*) as count 
-                from City c 
-                join c.country ct
-                group by ct.code 
-                order by count DESC
-                """);*/
-        return query.project(CityByCountryProjection.class).list();
+       return cityRepository.findAllCitiesGroupedByCountry();
+    }
+
+    @GET
+    @Path("/{city}/languages")
+    public List<LanguageUsage> getCityLanguages(@PathParam("city") String city) {
+        return cityRepository.findCityLanguagesByName(city);
+//        return cityRepository.findCityLanguagesNativeQuery(city);
+    }
+
+    @GET
+    @Path("/{city}/language")
+    public TextNode getCityMainLanguage(@PathParam("city") String city) {
+//        return RestResponse.ok(cityRepository.getCityMainLanguage(city));
+        return TextNode.valueOf(cityRepository.getCityMainLanguage(city));
     }
 }
 
